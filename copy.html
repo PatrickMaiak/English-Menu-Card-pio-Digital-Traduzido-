@@ -1,0 +1,1353 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Menu — Page Flip</title>
+
+  <style>
+    :root{
+      --ink:#4a3a2c;
+      --ink-soft:#5b4a3c;
+      --dots: rgba(74,58,44,.35);
+      --shadow: 0 14px 50px rgba(0,0,0,.18);
+      --radius: 14px;
+
+      /* spacing */
+      --padX: clamp(18px, 4.2vw, 44px);
+      --padTop: clamp(18px, 5.0vw, 38px);
+      --padBottom: clamp(20px, 5.2vw, 44px);
+
+      /* typography */
+      --titleSize: clamp(18px, 4.4vw, 28px);
+      --nameSize: clamp(14px, 3.3vw, 17px);
+      --descSize: clamp(11.5px, 2.7vw, 13.5px);
+      --unitsSize: clamp(10.5px, 2.4vw, 12px);
+      --priceSize: clamp(13px, 3vw, 16px);
+    }
+
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:#e9e3da;
+      font-family: Georgia, "Times New Roman", Times, serif;
+      color:var(--ink);
+      padding: clamp(10px, 3vw, 24px);
+    }
+
+    .book{
+      width: min(560px, 92vw);
+      aspect-ratio: 146 / 247; /* 14,6 x 24,7 */
+      position:relative;
+      perspective: 1400px;
+      filter: drop-shadow(var(--shadow));
+      border-radius: var(--radius);
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: pan-y; /* allow vertical scroll; we handle horizontal swipe */
+    }
+
+    .stage{
+      width:100%;
+      height:100%;
+      position:relative;
+      border-radius: var(--radius);
+      overflow:hidden;
+    }
+
+    .page{
+      position:absolute;
+      inset:0;
+      background: url("./backgroun.png") center/cover no-repeat;
+      border-radius: var(--radius);
+      transform-origin: left center;
+      backface-visibility: hidden;
+      will-change: transform;
+    }
+
+    .content{
+      position:absolute;
+      inset: var(--padTop) var(--padX) var(--padBottom) var(--padX);
+      display:flex;
+      flex-direction:column;
+      gap: clamp(8px, 1.6vw, 14px);
+    }
+
+    .title{
+      text-align:center;
+      letter-spacing:.18em;
+      font-weight:600;
+      font-size: var(--titleSize);
+      margin:0;
+      text-transform: uppercase;
+    }
+    .title-rule{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      margin: 2px 0 8px;
+    }
+    .title-rule::before,
+    .title-rule::after{
+      content:"";
+      height:1px;
+      width: clamp(64px, 18vw, 100px);
+      background: rgba(74,58,44,.55);
+    }
+    .title-rule span{
+      display:inline-block;
+      width:6px;height:6px;
+      border-radius:999px;
+      background: rgba(74,58,44,.7);
+    }
+
+    .item{ display:flex; flex-direction:column; gap:4px; }
+
+    .line{
+      display:flex;
+      align-items:baseline;
+      gap: 10px;
+    }
+
+    .name{
+      font-size: var(--nameSize);
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: .04em;
+      line-height: 1.05;
+      display:flex;
+      align-items:baseline;
+      gap:6px;
+      flex-wrap: wrap;
+    }
+
+    .icons{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      transform: translateY(8px);
+    }
+    .icons img{
+      width: clamp(13px, 2.9vw, 16px);
+      height:auto;
+      display:block;
+    }
+    .icons .emoji{
+      font-size: clamp(13px, 2.9vw, 16px);
+      line-height: 1;
+      transform: translateY(1px);
+    }
+
+    .dots{
+      flex:1;
+      border-bottom: 2px dotted var(--dots);
+      transform: translateY(-2px);
+      min-width: 14px;
+    }
+
+    .price{
+      font-size: var(--priceSize);
+      font-weight:600;
+      white-space:nowrap;
+    }
+
+    .desc{
+      font-size: var(--descSize);
+      line-height: 1.25;
+      color: var(--ink-soft);
+      max-width: 95%;
+    }
+
+    .units{
+      font-size: var(--unitsSize);
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    .subnote{
+      font-size: calc(var(--descSize) - 0.5px);
+      color: var(--ink-soft);
+      margin-top: 1px;
+    }
+
+    /* ===== Flip order ===== */
+    .page[data-index="0"]{ z-index: 9; }
+    .page[data-index="1"]{ z-index: 8; }
+    .page[data-index="2"]{ z-index: 7; }
+    .page[data-index="3"]{ z-index: 6; }
+
+    .page.is-flipped{
+      transform: rotateY(-180deg);
+      transition: transform 650ms cubic-bezier(.2,.85,.25,1);
+    }
+
+    .page.is-active{
+      transform: rotateY(0deg);
+      transition: transform 650ms cubic-bezier(.2,.85,.25,1);
+    }
+
+    @media (prefers-reduced-motion: reduce){
+      .page.is-flipped, .page.is-active{ transition:none !important; }
+    }
+
+    /* ===== UX overlay ===== */
+    .tap-layer{
+      position:absolute;
+      inset:0;
+      z-index: 50;
+      cursor: pointer;
+    }
+
+    .nav{
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      z-index: 60;
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      padding: 14px;
+    }
+
+    .btn{
+      pointer-events:auto;
+      border:0;
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-weight: 700;
+      letter-spacing:.02em;
+      background: rgba(255, 255, 255, 0.164);
+      color: var(--ink);
+      box-shadow: 0 8px 24px rgba(0,0,0,.12);
+      backdrop-filter: blur(1px);
+      -webkit-backdrop-filter: blur(6px);
+      display:flex;
+      align-items:center;
+      gap: 8px;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+    .btn.show{ opacity: 1; transform: translateY(0); }
+    .btn:active{ transform: translateY(1px); }
+
+    .hint{
+      pointer-events:none;
+      position:absolute;
+      top: 10px;
+      right: 12px;
+      font-size: 12px;
+      color: rgba(74,58,44,.6);
+      background: rgba(255, 255, 255, 0.171);
+      padding: 6px 10px;
+      border-radius: 999px;
+      backdrop-filter: blur(1px);
+      -webkit-backdrop-filter: blur(6px);
+      z-index: 65;
+    }
+
+
+  
+    .icons img{
+        
+  width: 25px;
+  height: 25px;
+  vertical-align: middle;
+}
+
+/* NOTE */
+.note-block .note-text{
+  max-width: 100%;
+  margin-top: 10px;
+  text-align: center;
+  font-size: clamp(0.9rem, 1.8vw, 1.05rem);
+  line-height: 1.35;
+  opacity: 0.92;
+}
+
+/* LEGEND */
+.legend-block{
+  margin-top: 10px;
+}
+
+.legend-title{
+  text-align: center;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  font-size: clamp(0.95rem, 2vw, 1.1rem);
+  margin: 10px 0 14px;
+}
+
+/* LEGEND (sempre 4 na mesma linha — inclusive no celular) */
+.legend-row{
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)); /* garante 4 colunas sempre */
+  gap: clamp(8px, 2vw, 18px);
+  align-items: start;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.legend-pill{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: center;
+  min-width: 0; /* evita overflow */
+}
+
+.legend-icon{
+  width: clamp(34px, 7vw, 62px); /* encolhe mais no celular */
+  height: auto;
+  display: block;
+}
+
+.legend-label{
+  margin-top: 6px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  font-size: clamp(0.55rem, 1.6vw, 0.8rem); /* menor no celular */
+  text-transform: uppercase;
+  opacity: 0.95;
+  line-height: 1.1;
+  white-space: nowrap;          /* mantém numa linha */
+  overflow: hidden;             /* se faltar espaço, corta */
+  text-overflow: ellipsis;      /* mostra "..." */
+}
+
+/* Ajuste extra para telas bem pequenas: continua 4 colunas, só reduz mais */
+@media (max-width: 520px){
+  .legend-row{
+    gap: 8px;
+  }
+  .legend-icon{
+    width: 34px;
+  }
+  .legend-label{
+    font-size: 0.55rem;
+    letter-spacing: 0.06em;
+  }
+}
+
+/* CLOSING */
+.closing-block{
+  margin-top: 18px;
+  text-align: center;
+}
+
+.closing-quote{
+  font-size: clamp(1.4rem, 4.6vw, 2.2rem);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  margin: 12px 0 18px;
+}
+
+.closing-instagram{
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  font-size: clamp(0.9rem, 2.2vw, 1.1rem);
+  opacity: 0.95;
+  flex-wrap: wrap; /* no celular quebra só essa linha, não os ícones */
+}
+
+.ig-icon{
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(0,0,0,0.35);
+  border-radius: 4px;
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+
+
+  </style>
+</head>
+
+<body>
+
+  <div class="book" id="book" aria-label="Menu book">
+    <div class="stage" id="stage">
+
+        <!-- =========================
+            PAGE 1 — TO SHARE
+        ========================== -->
+        <article class="page is-active" data-index="0" aria-label="Page 1">
+          <div class="content">
+            <h1 class="title">TO SHARE</h1>
+            <div class="title-rule"><span></span></div>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">
+                  COUVERT
+                  <span class="icons">
+                    <!-- <span class="emoji" title="Vegan">🌿</span> -->
+                    <img src="./icons/vegan-transparent.png" alt="Vegan">
+                  </span>
+                </div>
+                <div class="dots"></div>
+                <div class="price">36.00</div>
+              </div>
+              <div class="desc">Naturally fermented breads, fresh Pomerode cheese, and smoked nut pesto.</div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">COLD CUTS SELECTION</div>
+                <div class="dots"></div>
+                <div class="price">128.00 <span style="font-weight:400;">(half portion 68.00)</span></div>
+              </div>
+              <div class="desc">
+                60g naturally fermented focaccia, 125g brie cheese with red fruit jam,<br>
+                60g Serra Gaúcha cured ham, 80g Vale do Testo cheese,<br>
+                fresh Pomerode cheese and smoked nut pesto.
+              </div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">
+                  HACKEPETER
+                  <span class="icons">
+                    <!-- <span class="emoji" title="Gluten-Free">🟠</span> -->
+                    
+                    
+                    <img src="./icons/gluten-free-transparent.png" alt="Gluten Free">
+                  </span>
+                </div>
+                <div class="dots"></div>
+                <div class="price">72.00</div>
+              </div>
+              <div class="desc">
+                Knife-chopped raw filet mignon, seasoned, cassava mille-feuille<br>
+                and horseradish mayonnaise.
+              </div>
+              <div class="units">6 PIECES</div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">
+                  CURED TUNA CRUDO
+                  <span class="icons">
+                    <!-- <span class="emoji" title="Lactose-Free">🔵</span> -->
+                    <img src="./icons/lactose-free.png" alt="Lactose Free">
+                  </span>
+                </div>
+                <div class="dots"></div>
+                <div class="price">78.00</div>
+              </div>
+              <div class="desc">
+                House-cured and seasoned tuna, sesame seeds, house-caramelized ginger,<br>
+                roasted garlic mayonnaise. Served with focaccia crostinis.
+              </div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">
+                  BRAISED BEEF HARUMAKI
+                  <span class="icons">
+                    <!-- <span class="emoji" title="Lactose-Free">🔵</span> -->
+                    <img src="./icons/lactose-free.png" alt="Lactose Free">
+                  </span>
+                </div>
+                <div class="dots"></div>
+                <div class="price">22.00</div>
+              </div>
+              <div class="desc">
+                Spring rolls filled with slow-braised beef brisket<br>
+                and fresh chili mayonnaise.
+              </div>
+              <div class="units">2 PIECES</div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">VERMONT CHEESE HARUMAKI</div>
+                <div class="dots"></div>
+                <div class="price">22.00</div>
+              </div>
+              <div class="desc">
+                Spring rolls filled with brie, raclette, Pomerode cheese and fresh herbs,<br>
+                served with red fruit jam and balsamic vinegar.
+              </div>
+              <div class="units">2 PIECES</div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">ROASTED PUMPKIN CROQUETTE WITH DRIED BEEF</div>
+                <div class="dots"></div>
+                <div class="price">48.00</div>
+              </div>
+              <div class="desc">
+                Roasted pumpkin croquettes with dried beef and creamy cheese,<br>
+                served with herb mayonnaise.
+              </div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">
+                  CRISPY SHRIMP
+                  <span class="icons">
+                    <!-- <span class="emoji" title="Lactose-Free">🔵</span> -->
+                    <img src="./icons/lactose-free.png" alt="Lactose Free">
+                  </span>
+                </div>
+                <div class="dots"></div>
+                <div class="price">98.00</div>
+              </div>
+              <div class="desc">
+                Breaded pink shrimp, nori seaweed mayonnaise<br>
+                and house-made jalapeño pepper pickles.
+              </div>
+              <div class="subnote">(300g)</div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">
+                  PORK TACOS
+                  <span class="icons">
+                    <!-- <span class="emoji" title="Lactose-Free">🔵</span> -->
+                    <img src="./icons/lactose-free.png" alt="Lactose Free">
+                    <!-- <span class="emoji" title="Gluten-Free">🟠</span> -->
+                    <img src="./icons/gluten-free-transparent.png" alt="Gluten Free">
+                  </span>
+                </div>
+                <div class="dots"></div>
+                <div class="price">58.00</div>
+              </div>
+              <div class="desc">
+                Grilled pork belly on crispy corn base, romesco sauce,<br>
+                green tomato relish with chili pepper and tucupi glaze.
+              </div>
+              <div class="units">4 PIECES</div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">
+                  COD CROQUETTES
+                  <span class="icons">
+                    <!-- <span class="emoji" title="Lactose-Free">🔵</span> -->
+                    <img src="./icons/lactose-free.png" alt="Lactose Free">
+                  </span>
+                </div>
+                <div class="dots"></div>
+                <div class="price">68.00</div>
+              </div>
+              <div class="desc">
+                Gadus Morhua cod croquettes, black olive tartare<br>
+                and roasted garlic mayonnaise.
+              </div>
+              <div class="units">4 PIECES</div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">
+                  PARMA HAM &amp; BRIE TOAST
+                  <span class="icons">
+                    <!-- <span class="emoji" title="Lactose-Free">🔵</span> -->
+                    <img src="./icons/lactose-free.png" alt="Lactose Free">
+                  </span>
+                </div>
+                <div class="dots"></div>
+                <div class="price">46.00</div>
+              </div>
+              <div class="desc">
+                Naturally fermented bread, house tomato jam,<br>
+                crispy brie cheese and Serra Gaúcha cured ham.
+              </div>
+              <div class="units">2 PIECES</div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">BAO BUN</div>
+                <div class="dots"></div>
+                <div class="price">94.00</div>
+              </div>
+              <div class="desc">
+                Bao buns with nori powder, grilled octopus, green tomato chow-chow<br>
+                and fresh chili mayonnaise.
+              </div>
+              <div class="units">4 PIECES</div>
+            </section>
+          </div>
+        </article>
+
+        <!-- =========================
+            PAGE 2 — TO SHARE
+        ========================== -->
+        <article class="page" data-index="1" aria-label="Page 2">
+          <div class="content">
+            <h1 class="title">TO SHARE</h1>
+            <div class="title-rule"><span></span></div>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">ARTISAN CHICKEN SAUSAGE</div>
+                <div class="dots"></div>
+                <div class="price">72.00</div>
+              </div>
+              <div class="desc">
+                House-made chicken and bacon sausage, spicy orange ketchup<br>
+                and house farofa.
+              </div>
+              <div class="subnote">(500g)</div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">BEEF CARPACCIO</div>
+                <div class="dots"></div>
+                <div class="price">68.00</div>
+              </div>
+              <div class="desc">
+                Beef carpaccio, roasted garlic mayonnaise, crispy capers,<br>
+                Vale do Testo aged cheese (6 months) and baby arugula.
+              </div>
+              <div class="subnote">(served with crostinis)</div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">FRESH MUSHROOM CROSTATA</div>
+                <div class="dots"></div>
+                <div class="price">38.00</div>
+              </div>
+              <div class="desc">
+                Thin, crispy naturally fermented dough with parmesan, romesco sauce,<br>
+                fresh mushrooms and roasted tomatoes.
+              </div>
+              <div class="units">2 PIECES</div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">PASTRAMI PUFFS</div>
+                <div class="dots"></div>
+                <div class="price">62.00</div>
+              </div>
+              <div class="desc">
+                Crispy choux pastry filled with beef pastrami,<br>
+                pickle relish, red onion, raclette cheese and herb mayonnaise.
+              </div>
+              <div class="units">4 PIECES</div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">CRISPY BURRATA</div>
+                <div class="dots"></div>
+                <div class="price">82.00</div>
+              </div>
+              <div class="desc">
+                Breaded and fried burrata, puttanesca sauce, roasted garlic purée,<br>
+                fresh basil and naturally fermented bread.
+              </div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">CRISPY CHICKEN</div>
+                <div class="dots"></div>
+                <div class="price">62.00</div>
+              </div>
+              <div class="desc">
+                Boneless chicken thigh strips marinated in yogurt,<br>
+                house seasoning and crispy corn flakes.
+              </div>
+              <div class="subnote">(400g)</div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">
+                  FALAFEL
+                  <span class="icons">
+                    <!-- <span class="emoji" title="Vegan">🌿</span> -->
+                    <img src="./icons/vegan-transparent.png" alt="Vegan">
+                  </span>
+                </div>
+                <div class="dots"></div>
+                <div class="price">38.00</div>
+              </div>
+              <div class="desc">
+                Fried chickpea fritters with herbs and spices,<br>
+                served with smoked tofu cream.
+              </div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">MINI PASTRIES</div>
+                <div class="dots"></div>
+                <div class="price">
+                  <span style="font-weight:400;">(2 pcs)</span> 16.00 — <span style="font-weight:400;">(6 pcs)</span> 46.00
+                </div>
+              </div>
+              <div class="desc">
+                • Shrimp with leeks<br>
+                • Blumenau sausage with fresh Pomerode cheese<br>
+                • Creamy heart of palm
+              </div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">
+                  WEDGE POTATOES
+                  <span class="icons">
+                    <!-- <span class="emoji" title="Gluten-Free">🟠</span> -->
+                    <img src="./icons/gluten-free-transparent.png" alt="Gluten Free">
+                    <!-- <span class="emoji" title="Lactose-Free">🔵</span> -->
+                    <img src="./icons/lactose-free.png" alt="Lactose Free">
+                  </span>
+                </div>
+                <div class="dots"></div>
+                <div class="price">42.00</div>
+              </div>
+              <div class="desc">Potato wedges served with house mayonnaise.</div>
+              <div class="subnote">(400g)</div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">WAFFLE-CUT POTATOES</div>
+                <div class="dots"></div>
+                <div class="price">42.00</div>
+              </div>
+              <div class="desc">Crispy outside and soft inside, served with house mayonnaise.</div>
+              <div class="subnote">(400g)</div>
+            </section>
+
+          </div>
+        </article>
+
+        <!-- =========================
+            PAGE 3 — MAIN COURSES
+        ========================== -->
+        <article class="page" data-index="2" aria-label="Page 3">
+          <div class="content">
+            <h1 class="title">MAIN COURSES</h1>
+            <div class="title-rule"><span></span></div>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">GRILLED NAPA CABBAGE SALAD</div>
+                <div class="dots"></div>
+                <div class="price">42.00</div>
+              </div>
+              <div class="desc">
+                Grilled napa cabbage, tofu mayonnaise, bacon farofa<br>
+                and naturally fermented croutons with parmesan.
+              </div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">TOMATO RISOTTO WITH SHRIMP</div>
+                <div class="dots"></div>
+                <div class="price">98.00</div>
+              </div>
+              <div class="desc">
+                Tomato risotto, pink shrimp, roasted tomatoes<br>
+                and Vale do Testo aged cheese farofa (6 months).
+              </div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">FILET MIGNON WITH LASAGNE</div>
+                <div class="dots"></div>
+                <div class="price">88.00</div>
+              </div>
+              <div class="desc">
+                Grilled filet mignon, fresh mushroom lasagne<br>
+                with Alfredo sauce and demi-glace.
+              </div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">GRILLED ENTRECÔTE</div>
+                <div class="dots"></div>
+                <div class="price">88.00</div>
+              </div>
+              <div class="desc">
+                Grilled beef entrecôte served with vegetables,<br>
+                house farofa and seasoned wedge potatoes.
+              </div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">CALAMARATA WITH CALAMARI</div>
+                <div class="dots"></div>
+                <div class="price">98.00</div>
+              </div>
+              <div class="desc">
+                Durum wheat pasta, puttanesca sauce,<br>
+                burrata cream with Sicilian lemon, grilled squid,<br>
+                gremolata and toasted pistachio.
+              </div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">ORECCHIETTE</div>
+                <div class="dots"></div>
+                <div class="price">78.00</div>
+              </div>
+              <div class="desc">
+                Durum wheat pasta with romesco sauce,<br>
+                crispy house pastrami, Vale do Testo cheese<br>
+                and pickled red onion.
+              </div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">BRAISED BEEF RIB</div>
+                <div class="dots"></div>
+                <div class="price">88.00</div>
+              </div>
+              <div class="desc">
+                Hereford beef rib slow-cooked at low temperature,<br>
+                glazed with Korean-style sauce, mushroom purée<br>
+                and fresh cabbage and zucchini salad.
+              </div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">GRILLED OCTOPUS</div>
+                <div class="dots"></div>
+                <div class="price">148.00</div>
+              </div>
+              <div class="desc">
+                Grilled octopus served with creamy black rice<br>
+                and Provençal cherry tomatoes.
+              </div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">
+                  MEDITERRANEAN ZUCCHINI
+                  <span class="icons">
+                    <!-- <span class="emoji" title="Vegan">🌿</span> -->
+                    <img src="./icons/vegan-transparent.png" alt="Vegan">
+                    <!-- <span class="emoji" title="Gluten-Free">🟠</span> -->
+                    <img src="./icons/gluten-free-transparent.png" alt="Gluten Free">
+                  </span>
+                </div>
+                <div class="dots"></div>
+                <div class="price">38.00</div>
+              </div>
+              <div class="desc">
+                Stuffed zucchini with tofu cream, black olives, cherry tomatoes,<br>
+                fresh herbs and savory almond crumble.
+              </div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">CURED TUNA LOIN</div>
+                <div class="dots"></div>
+                <div class="price">78.00</div>
+              </div>
+              <div class="desc">
+                Warm yakibifun noodle salad, cured and seared tuna loin,<br>
+                toasted peanuts and orange tare sauce.
+              </div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">STEAK &amp; EGGS</div>
+                <div class="dots"></div>
+                <div class="price">82.00</div>
+              </div>
+              <div class="desc">
+                Grilled flank steak, crispy poached egg,<br>
+                rice with broccoli and fried garlic, house sauce.
+              </div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">KIDS</div>
+                <div class="dots"></div>
+                <div class="price">52.00</div>
+              </div>
+              <div class="desc">
+                Filet mignon strips or tilapia fillet, white rice and wedge potatoes.
+              </div>
+            </section>
+
+          </div>
+        </article>
+
+        <!-- =========================
+            PAGE 4 — DESSERTS
+        ========================== -->
+        <article class="page" data-index="3" aria-label="Page 4">
+          <div class="content">
+            <h1 class="title">DESSERTS</h1>
+            <div class="title-rule"><span></span></div>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">COOKIE’N CREAM</div>
+                <div class="dots"></div>
+                <div class="price">28.00</div>
+              </div>
+              <div class="desc">
+                Cocoa cookie with hazelnuts and white chocolate chips,<br>
+                macerated strawberries and dulce de leche ice cream.
+              </div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">CHILLED COCONUT CAKE WITH PINEAPPLE</div>
+                <div class="dots"></div>
+                <div class="price">28.00</div>
+              </div>
+              <div class="desc">
+                Chilled coconut cake, vanilla coconut foam,<br>
+                pineapple compote and coconut crumble.
+              </div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">
+                  CASHEW NUT CREAM
+                  <span class="icons">
+                    
+                    <img src="./icons/gluten-free-transparent.png" alt="Gluten Free">
+                    <!-- <span class="emoji" title="Gluten-Free">🟠</span> -->
+          
+                    <img class="menu-icon" src="./icons/lactose-free.png" alt="Lactose Free">
+                  </span>
+                </div>
+                <div class="dots"></div>
+                <div class="price">32.00</div>
+              </div>
+              <div class="desc">
+                Cashew nut cream, green apple compote,<br>
+                caramelized shiso leaf and pistachio crumble.
+              </div>
+            </section>
+
+            <section class="item">
+              <div class="line">
+                <div class="name">TIRAMISU</div>
+                <div class="dots"></div>
+                <div class="price">32.00</div>
+              </div>
+              <div class="desc">
+                Ladyfinger biscuits soaked in Schluck coffee liqueur,<br>
+                coffee cream cheese, chocolate crunch<br>
+                and cocoa crumble.
+              </div>
+            </section>
+
+          <section class="item note-block">
+        <div class="note-text">
+          <strong>Note:</strong> Our kitchen handles food products containing gluten.<br>
+          Cross-contamination may occur.
+        </div>
+      </section>
+
+      <section class="item legend-block">
+        <div class="legend-title">LEGEND:</div>
+
+        <div class="legend-row">
+          <div class="legend-pill">
+              <img class="legend-icon" src="./icons/vegan-transparent.png" alt="VEGETARIAN">
+            
+            <!-- <img class="legend-icon" src="./icons/vegetarian.ico" alt="Vegetarian"> -->
+            <div class="legend-label">VEGETARIAN</div>
+          </div>
+
+          <div class="legend-pill">
+            <img class="legend-icon" src="./icons/lactose-free.png" alt="Lactose-Free">
+            <!-- <img class="legend-icon" src="./icons/lactose-free.ico" alt="Lactose-Free"> -->
+            <div class="legend-label">LACTOSE-FREE</div>
+          </div>
+
+          <div class="legend-pill">
+            <img class="legend-icon" src="./icons/gluten-free-transparent.png" alt="Gluten-Free">
+            <!-- <img class="legend-icon" src="./icons/free-glutem.ico" alt="Gluten-Free"> -->
+            <div class="legend-label">GLUTEN-FREE</div>
+          </div>
+
+          <div class="legend-pill">
+            <img class="legend-icon" src="./icons/vegetarian-transparent (1).png" alt="VEGAN">
+            <!-- <img class="legend-icon" src="./icons/vegan.ico" alt="Vegan"> -->
+            <div class="legend-label">VEGAN</div>
+          </div>
+        </div>
+      </section>
+
+            <section class="item closing-block">
+              <div class="closing-quote">“Cultivate Love!”</div>
+
+              <div class="closing-instagram">
+                <span class="ig-icon" aria-hidden="true">⌁</span>
+                <span>Follow us on Instagram:</span>
+                <strong>@hortusgastrobar</strong>
+              </div>
+            </section>
+
+
+          </div>
+        </article>
+
+
+      <!-- Página de Capa do Menu de Drinks -->
+        <article class="page" data-index="4" aria-label="Page 4">
+          <div class="content">
+            <img src="icons/drinkscapa.png" alt="Drink Menu Cover" style="margin-left: -20%;margin-top: -10%;  width:140%; height:140%; object-fit:cover; border-radius: var(--radius);">
+          </div>
+        </article>
+        <!-- =========================
+            PAGE 1 — AUTORAIS
+        ========================== -->
+        <article class="page" data-index="6" aria-label="Page 5 — Autorais">
+          <div class="content">
+            <h1 class="title">Autorais</h1>
+            <div class="title-rule"><span></span></div>
+
+            <!-- AMARO SPRITZ DE FRUTAS VERMELHAS -->
+            <section class="item">
+              <div class="line">
+                <div class="name">AMARO SPRITZ DE FRUTAS VERMELHAS</div>
+                <div class="dots"></div>
+                <div class="price">42,00</div>
+              </div>
+              <div class="desc">Amaro Avern, Shrub of Red Fruits and Hibiscus, topped with sparkling wine.</div>
+              <div class="subnote">Signature - Bitter / Fruity / Balanced.</div>
+              <!-- <img src="path/to/your/cup-icon.png" alt="Cup Icon" /> -->
+            </section>
+
+            <!-- AISLING -->
+            <section class="item">
+              <div class="line">
+                <div class="name">AISLING</div>
+                <div class="dots"></div>
+                <div class="price">38,00</div>
+              </div>
+              <div class="desc">Gin Kalvelage, Twinings Breakfast Tea, Blueberry Purée, Artisanal Baunilha Syrup, Graviola Infusion, Lemon Juice, and Red Mint Tonic.</div>
+              <div class="subnote">Signature - Fruity / Refreshing.</div>
+              <!-- <img src="path/to/your/cup-icon.png" alt="Cup Icon" /> -->
+            </section>
+
+            <!-- JACK AND JACK -->
+            <section class="item">
+              <div class="line">
+                <div class="name">JACK AND JACK</div>
+                <div class="dots"></div>
+                <div class="price">38,00</div>
+              </div>
+              <div class="desc">Jack Daniels Whiskey, Jack Honey Whiskey Liqueur, Vermouth Bianco, Sicilian Lemon, and Simple Syrup.</div>
+              <div class="subnote">Signature - Sour / Citrusy.</div>
+              <!-- <img src="path/to/your/cup-icon.png" alt="Cup Icon" /> -->
+            </section>
+
+            <!-- CANTO DO BOTO -->
+            <section class="item">
+              <div class="line">
+                <div class="name">CANTO DO BOTO</div>
+                <div class="dots"></div>
+                <div class="price">32,00</div>
+              </div>
+              <div class="desc">Gin Kalvelage, Ginger Syrup, Simple Syrup, Lime Taiti, Ginger Tonic, Clove and Mint Spray.</div>
+              <div class="subnote">Signature - Refreshing / Slightly Spicy.</div>
+              <!-- <img src="path/to/your/cup-icon.png" alt="Cup Icon" /> -->
+            </section>
+
+            <!-- LYKOS -->
+            <section class="item">
+              <div class="line">
+                <div class="name">LYKOS</div>
+                <div class="dots"></div>
+                <div class="price">38,00</div>
+              </div>
+              <div class="desc">Vodka Kalvelage, Elderflower Liqueur, Aperol, Licorice Liqueur, Sicilian Lemon Juice, Passion Fruit Pulp, and Albumin.</div>
+              <div class="subnote">Signature - Citrusy / Herbal.</div>
+              <!-- <img src="path/to/your/cup-icon.png" alt="Cup Icon" /> -->
+            </section>
+
+          </div>
+        </article>
+
+        <!-- =========================
+            PAGE 2 — CLÁSSICOS
+        ========================== -->
+        <article class="page" data-index="7" aria-label="Page 2 — Clássicos">
+          <div class="content">
+            <h1 class="title">Clássicos</h1>
+            <div class="title-rule"><span></span></div>
+
+            <!-- CAIPIRINHA -->
+            <section class="item">
+              <div class="line">
+                <div class="name">CAIPIRINHA</div>
+                <div class="dots"></div>
+                <div class="price">30,00</div>
+              </div>
+              <div class="desc">Cachaça Salinas, Lime Taiti or Strawberry, and Simple Syrup.</div>
+              <div class="subnote">Reinterpretation - Refreshing / Citrusy.</div>
+              <!-- <img src="path/to/your/cup-icon.png" alt="Cup Icon" /> -->
+            </section>
+
+            <!-- CAIPIROSKA -->
+            <section class="item">
+              <div class="line">
+                <div class="name">CAIPIROSKA</div>
+                <div class="dots"></div>
+                <div class="price">30,00</div>
+              </div>
+              <div class="desc">Vodka Kalvelage, Lime Taiti or Strawberry, and Simple Syrup.</div>
+              <div class="subnote">Reinterpretation - Refreshing / Citrusy.</div>
+              <!-- <img src="path/to/your/cup-icon.png" alt="Cup Icon" /> -->
+            </section>
+
+            <!-- MOSCOW MULE -->
+            <section class="item">
+              <div class="line">
+                <div class="name">MOSCOW MULE</div>
+                <div class="dots"></div>
+                <div class="price">32,00</div>
+              </div>
+              <div class="desc">Vodka Kalvelage Vibe, Ginger Syrup, Lime Taiti, Simple Syrup, and Citrus Foam.</div>
+              <div class="subnote">Reinterpretation - Refreshing / Citrusy.</div>
+              <!-- <img src="path/to/your/cup-icon.png" alt="Cup Icon" /> -->
+            </section>
+
+            <!-- BOULEVARDIER -->
+            <section class="item">
+              <div class="line">
+                <div class="name">BOULEVARDIER</div>
+                <div class="dots"></div>
+                <div class="price">38,00</div>
+              </div>
+              <div class="desc">Bourbon Whiskey Jim Beam, Aperol Aperitif, Bitter Campari, and Rosso Vermouth.</div>
+              <div class="subnote">Reinterpretation - Dry / Bitter.</div>
+              <!-- <img src="path/to/your/cup-icon.png" alt="Cup Icon" /> -->
+            </section>
+
+          </div>
+        </article>
+
+        <!-- =========================
+            PAGE 3 — RELEITURAS
+        ========================== -->
+        <article class="page" data-index="8" aria-label="Page 3 — Releituras">
+          <div class="content">
+            <h1 class="title">Releituras</h1>
+            <div class="title-rule"><span></span></div>
+
+            <!-- PREMIUM -->
+            <section class="item">
+              <div class="line">
+                <div class="name">PREMIUM</div>
+                <div class="dots"></div>
+                <div class="price">48,00</div>
+              </div>
+              <div class="desc">The Botanist Gin, Sicilian Lemon, Simple Syrup, Blueberry Syrup, Mint, and Blackberry.</div>
+              <div class="subnote">Reinterpretation - Refreshing / Acidic.</div>
+              <!-- <img src="path/to/your/cup-icon.png" alt="Cup Icon" /> -->
+            </section>
+
+            <!-- COSMOPOLITAN -->
+            <section class="item">
+              <div class="line">
+                <div class="name">COSMOPOLITAN</div>
+                <div class="dots"></div>
+                <div class="price">32,00</div>
+              </div>
+              <div class="desc">Citron Vodka, Triple Sec Liqueur, Lime Taiti, and Cranberry Syrup.</div>
+              <div class="subnote">Reinterpretation - Citrusy.</div>
+              <!-- <img src="path/to/your/cup-icon.png" alt="Cup Icon" /> -->
+            </section>
+
+            <!-- EXPRESSO MARTINI -->
+            <section class="item">
+              <div class="line">
+                <div class="name">EXPRESSO MARTINI</div>
+                <div class="dots"></div>
+                <div class="price">38,00</div>
+              </div>
+              <div class="desc">San Basile Coffee Liqueur, Kalvelage Vodka, Espresso Coffee, Simple Syrup, and Cocoa Bitters.</div>
+              <div class="subnote">Reinterpretation - Intense / Energizing / Sweet and Bitter.</div>
+              <!-- <img src="path/to/your/cup-icon.png" alt="Cup Icon" /> -->
+            </section>
+
+            <!-- FLOR DE TANGERINA -->
+            <section class="item">
+              <div class="line">
+                <div class="name">FLOR DE TANGERINA</div>
+                <div class="dots"></div>
+                <div class="price">38,00</div>
+              </div>
+              <div class="desc">Tangerine Liqueur Schluck, Lime Taiti, and Tonic.</div>
+              <div class="subnote">Reinterpretation - Refreshing / Citrusy.</div>
+              <!-- <img src="path/to/your/cup-icon.png" alt="Cup Icon" /> -->
+            </section>
+
+          </div>
+        </article>
+
+
+
+
+
+
+        <!-- Click layer -->
+        <div class="tap-layer" id="tapLayer" aria-label="Tap to show navigation"></div>
+
+        <!-- Navigation -->
+        <div class="nav">
+          <button class="btn" id="prevBtn" type="button" aria-label="Previous page">← Prev</button>
+          <button class="btn" id="nextBtn" type="button" aria-label="Next page">Next →</button>
+        </div>
+
+        <div class="hint">Swipe ← → • Click/tap for buttons • ← → keys</div>
+    </div>
+
+  </div>
+
+  <script>
+    // ===== Page Flip Controller (with swipe) =====
+    const pages = Array.from(document.querySelectorAll(".page"));
+    let index = 0;
+
+    const tapLayer = document.getElementById("tapLayer");
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+
+    let buttonsVisible = false;
+    let hideTimer = null;
+
+    function showButtons(){
+      buttonsVisible = true;
+      prevBtn.classList.add("show");
+      nextBtn.classList.add("show");
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(hideButtons, 2400);
+    }
+    function hideButtons(){
+      buttonsVisible = false;
+      prevBtn.classList.remove("show");
+      nextBtn.classList.remove("show");
+    }
+    function updateButtons(){
+      prevBtn.disabled = index === 0;
+      nextBtn.disabled = index === pages.length - 1;
+      prevBtn.style.opacity = prevBtn.disabled ? 0.45 : 1;
+      nextBtn.style.opacity = nextBtn.disabled ? 0.45 : 1;
+    }
+
+    function goTo(newIndex){
+      if (newIndex < 0 || newIndex >= pages.length) return;
+
+      pages.forEach((p, i) => {
+        p.classList.remove("is-active");
+        if (i < newIndex) p.classList.add("is-flipped");
+        else p.classList.remove("is-flipped");
+      });
+
+      pages[newIndex].classList.add("is-active");
+      index = newIndex;
+      updateButtons();
+      showButtons();
+    }
+
+    // initial
+    pages[0].classList.add("is-active");
+    updateButtons();
+
+    // tap shows buttons
+    tapLayer.addEventListener("click", () => {
+      if (!buttonsVisible) showButtons();
+      else hideButtons();
+    });
+
+    // buttons
+    nextBtn.addEventListener("click", (e)=>{ e.stopPropagation(); goTo(index+1); });
+    prevBtn.addEventListener("click", (e)=>{ e.stopPropagation(); goTo(index-1); });
+
+    // keyboard
+    window.addEventListener("keydown", (e)=>{
+      if (e.key === "ArrowRight") goTo(index+1);
+      if (e.key === "ArrowLeft") goTo(index-1);
+    });
+
+    // ===== Swipe left/right to change pages =====
+    // works for touch + trackpad horizontal scrolling (wheel)
+    let startX = null;
+    let startY = null;
+
+    tapLayer.addEventListener("touchstart", (e)=>{
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    }, {passive:true});
+
+    tapLayer.addEventListener("touchend", (e)=>{
+      if (startX === null || startY === null) return;
+      const endX = e.changedTouches[0].clientX;
+      const endY = e.changedTouches[0].clientY;
+      const dx = endX - startX;
+      const dy = endY - startY;
+      startX = startY = null;
+
+      // ignore mostly-vertical gestures
+      if (Math.abs(dy) > Math.abs(dx)) return;
+      if (Math.abs(dx) < 40) return;
+
+      if (dx < 0) goTo(index+1); // swipe left -> next
+      else goTo(index-1);        // swipe right -> prev
+    }, {passive:true});
+
+    // Trackpad / mouse wheel horizontal swipe (optional)
+    let wheelLock = false;
+    tapLayer.addEventListener("wheel", (e)=>{
+      // if user scrolls horizontally more than vertically, treat as swipe
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY) && Math.abs(e.deltaX) > 18){
+        e.preventDefault();
+        if (wheelLock) return;
+        wheelLock = true;
+
+        if (e.deltaX > 0) goTo(index+1);
+        else goTo(index-1);
+
+        setTimeout(()=> wheelLock = false, 500);
+      }
+    }, {passive:false});
+  </script>
+</body>
+</html>
