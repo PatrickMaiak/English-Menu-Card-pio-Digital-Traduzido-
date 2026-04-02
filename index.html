@@ -557,6 +557,49 @@
 
 
 
+
+/* ===== MICHELIN STYLE DRINKS ===== */
+
+.section-title {
+  font-size: 14px;
+  letter-spacing: 2px;
+  font-weight: 600;
+  opacity: 0.7;
+  margin-bottom: 12px;
+}
+
+.drinks-minimal {
+  margin-top: 8px;
+}
+
+/* linha de cada item */
+.drink-row {
+  display: flex;
+  align-items: center;
+  margin: 6px 0;
+  font-size: 14px;
+}
+
+/* nome */
+.drink-name {
+  white-space: nowrap;
+  font-weight: 400;
+}
+
+/* pontilhado elegante */
+.drink-dots {
+  flex: 1;
+  border-bottom: 1px dotted rgba(0, 0, 0, 0.25);
+  margin: 0 10px;
+  transform: translateY(-2px);
+}
+
+/* preço */
+.drink-price {
+  white-space: nowrap;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
   </style>
 </head>
 
@@ -1872,29 +1915,64 @@
         ========================== -->
         <article class="page" data-index="14" aria-label="Page 15 — Mocktails">
           <div class="content">
-            <h1 class="title">Mocktails</h1>
+            <h1 class="title">NON-ALCOHOLIC BEVERAGES</h1>
             <div class="title-rule"><span></span></div>
-            <!-- NON-ALCOHOLIC DRINKS -->
-            <section class="item">
-              <div class="line">
-                <div class="name">NON-ALCOHOLIC DRINKS</div>
-                <div class="dots"></div>
-                <div class="price"></div>
-              </div>
-              <div class="desc">
-                <ul>
-                  <li>Still Water - 8,00</li>
-                  <li>Sparkling Water - 8,00</li>
-                  <li>Sodas (Coca-Cola, Guaraná, Schweppes Citrus) - 9,00</li>
-                  <li>Tonic Water (Red Mint and Pink Lemonade) - 11,50</li>
-                  <li>Acqua Panna - 29,00</li>
-                  <li>San Pellegrino - 29,00</li>
-                  <li>Juices - 14,00</li>
-                  <li>Red Bull Energy Drink (Consult Flavors) - 19,00</li>
-                </ul>
-              </div>
-              <div class="subnote">Soft Drinks & Juices.</div>
-            </section>
+
+
+         <!-- NON-ALCOHOLIC BEVERAGES -->
+<section class="item drinks-minimal">
+  <div class="line">
+    <div class="name section-title">Soft Drinks & Juices.</div>
+  </div>
+
+  <div class="drink-row">
+    <span class="drink-name">Still Water</span>
+    <span class="drink-dots"></span>
+    <span class="drink-price">8.00</span>
+  </div>
+
+  <div class="drink-row">
+    <span class="drink-name">Sparkling Water</span>
+    <span class="drink-dots"></span>
+    <span class="drink-price">8.00</span>
+  </div>
+
+  <div class="drink-row">
+    <span class="drink-name">Sodas (Coca-Cola, Guaraná, Schweppes Citrus)</span>
+    <span class="drink-dots"></span>
+    <span class="drink-price">9.00</span>
+  </div>
+
+  <div class="drink-row">
+    <span class="drink-name">Tonic Water (Red Mint, Pink Lemonade)</span>
+    <span class="drink-dots"></span>
+    <span class="drink-price">11.50</span>
+  </div>
+
+  <div class="drink-row">
+    <span class="drink-name">Acqua Panna</span>
+    <span class="drink-dots"></span>
+    <span class="drink-price">29.00</span>
+  </div>
+
+  <div class="drink-row">
+    <span class="drink-name">San Pellegrino</span>
+    <span class="drink-dots"></span>
+    <span class="drink-price">29.00</span>
+  </div>
+
+  <div class="drink-row">
+    <span class="drink-name">Juices</span>
+    <span class="drink-dots"></span>
+    <span class="drink-price">14.00</span>
+  </div>
+
+  <div class="drink-row">
+    <span class="drink-name">Red Bull (consult flavors)</span>
+    <span class="drink-dots"></span>
+    <span class="drink-price">19.00</span>
+  </div>
+</section>
 
           </div>
         </article>
@@ -1907,6 +1985,7 @@
           <div class="content compact">
             <h1 class="title">Doses / Garrafas</h1>
             <div class="title-rule"><span></span></div>
+
 
             <!-- VODKA --> 
             <h2>Vodka</h2> 
@@ -2024,6 +2103,19 @@
                 <div class="price">42,00 | 54,00 | 348,00</div>
               </div>
             </section>
+
+          </div>
+        </article>
+
+        <!-- =========================
+            PAGE 2 — DOSES / GARRAFAS
+        ========================== -->
+        <article class="page" data-index="12" aria-label="Page 13 — Doses / Garrafas">
+          <div class="content compact">
+            <h1 class="title">Doses / Garrafas</h1>
+            <div class="title-rule"><span></span></div>
+
+
 
             <!-- RUM -->
             <h2>Rum</h2>
